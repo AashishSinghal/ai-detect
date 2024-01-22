@@ -38,8 +38,12 @@ type Props = {};
 
 let interval: any = null;
 let stopTimeout: any = null;
+let isMobile: boolean = false;
 
 const HomePage = (props: Props) => {
+  if (typeof window !== "undefined") {
+    isMobile = /Mobile|Tablet|iPad/.test(window.navigator.userAgent);
+  }
   // Refs
   const webcamRef = useRef<Webcam>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -80,6 +84,7 @@ const HomePage = (props: Props) => {
   useEffect(() => {
     setLoading(true);
     initModal();
+    console.log(isMobile);
   }, []);
 
   // Load model
@@ -131,10 +136,10 @@ const HomePage = (props: Props) => {
   }, [webcamRef.current, modal, mirrored, autoRecordEnabled]);
 
   return (
-    <div className="flex h-screen">
+    <div className="flex flex-col w-screen lg:flex-row h-screen ">
       {/* Main Screen */}
       <div className="relative">
-        <div className="relative h-screen w-full">
+        <div className="relative lg:h-screen w-full">
           <Webcam
             ref={webcamRef}
             mirrored={mirrored}
@@ -147,10 +152,9 @@ const HomePage = (props: Props) => {
         </div>
       </div>
       {/* SidePanel */}
-      <div className="flex flex-row flex-1">
-        <div className="border-primary/5 border-2 max-w-xs flex flex-col gap-2 justify-between p-2">
-          {/* Top */}
-          <div className="flex flex-col gap-2">
+      <div className="flex flex-col lg:flex-row flex-1 ">
+        {isMobile ? (
+          <div className="border-primary/5 border-2  flex gap-2 justify-between p-2">
             <ModeToggle />
             <Button
               variant={"outline"}
@@ -159,11 +163,6 @@ const HomePage = (props: Props) => {
             >
               <FlipHorizontal />
             </Button>
-            <Separator className="my-2" />
-          </div>
-          {/* Middle */}
-          <div className="flex flex-col gap-2">
-            <Separator className="my-2" />
             <Button
               variant={"outline"}
               size={"icon"}
@@ -178,7 +177,6 @@ const HomePage = (props: Props) => {
             >
               <Video />
             </Button>
-            <Separator className="my-2" />
             <Button
               variant={autoRecordEnabled ? "destructive" : "outline"}
               size={"icon"}
@@ -190,10 +188,6 @@ const HomePage = (props: Props) => {
                 <PersonStanding />
               )}
             </Button>
-          </div>
-          {/* Bottom */}
-          <div className="flex flex-col gap-2">
-            <Separator className="my-2" />
             <Popover>
               <PopoverTrigger asChild>
                 <Button
@@ -218,7 +212,80 @@ const HomePage = (props: Props) => {
               </PopoverContent>
             </Popover>
           </div>
-        </div>
+        ) : (
+          <div className="border-primary/5 border-2 max-w-xs flex flex-col gap-2 justify-between p-2">
+            {/* Top */}
+            <div className="flex flex-col gap-2">
+              <ModeToggle />
+              <Button
+                variant={"outline"}
+                size={"icon"}
+                onClick={() => setMirrored((prev) => !prev)}
+              >
+                <FlipHorizontal />
+              </Button>
+              <Separator className="my-2" />
+            </div>
+            {/* Middle */}
+            <div className="flex flex-col gap-2">
+              <Separator className="my-2" />
+              <Button
+                variant={"outline"}
+                size={"icon"}
+                onClick={userPromptScreenShot}
+              >
+                <Camera />
+              </Button>
+              <Button
+                variant={isRecording ? "destructive" : "outline"}
+                size={"icon"}
+                onClick={userPromptRecord}
+              >
+                <Video />
+              </Button>
+              <Separator className="my-2" />
+              <Button
+                variant={autoRecordEnabled ? "destructive" : "outline"}
+                size={"icon"}
+                onClick={toggleAutoRecord}
+              >
+                {autoRecordEnabled ? (
+                  <Rings color="white" height={45} />
+                ) : (
+                  <PersonStanding />
+                )}
+              </Button>
+            </div>
+            {/* Bottom */}
+            <div className="flex flex-col gap-2">
+              <Separator className="my-2" />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={"outline"}
+                    size={"icon"}
+                    onClick={userPromptRecord}
+                  >
+                    <Volume2 />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent>
+                  <Slider
+                    max={1}
+                    min={0}
+                    step={0.2}
+                    defaultValue={[volume]}
+                    onValueCommit={(value) => {
+                      setVolume(value[0]);
+                      beep(value[0]);
+                    }}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+        )}
+
         <div className="h-full flex-1 py-4 px-2 overflow-y-scroll">
           <RenderFeatureHighlightsSection />
         </div>
