@@ -9,7 +9,13 @@ import {
 } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
-import beep from "@/utils/audio";
+import {
+  base64ToBlob,
+  beep,
+  createBlobAndDownloadFile,
+  drawOnCanvas,
+  resizeCanvas,
+} from "@/lib/utils";
 import {
   Camera,
   FlipHorizontal,
@@ -19,22 +25,110 @@ import {
   Video,
   Volume2,
 } from "lucide-react";
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Rings } from "react-loader-spinner";
 import Webcam from "react-webcam";
 import { toast } from "sonner";
+import * as cocossd from "@tensorflow-models/coco-ssd";
+import "@tensorflow/tfjs-backend-cpu";
+import "@tensorflow/tfjs-backend-webgl";
+import { DetectedObject, ObjectDetection } from "@tensorflow-models/coco-ssd";
 
 type Props = {};
 
+let interval: any = null;
+let stopTimeout: any = null;
+
 const HomePage = (props: Props) => {
+  // Refs
   const webcamRef = useRef<Webcam>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
 
   // States
   const [mirrored, setMirrored] = useState<boolean>(false);
   const [isRecording, setIsRecording] = useState<boolean>(false);
   const [autoRecordEnabled, setAutoRecordEnabled] = useState<boolean>(false);
   const [volume, setVolume] = useState<number>(0.8);
+  const [modal, setModal] = useState<ObjectDetection>();
+  const [loading, setLoading] = useState<boolean>(true);
+
+  // Used to Manade Media recorder
+  useEffect(() => {
+    if (webcamRef && webcamRef.current) {
+      const stream = (webcamRef.current.video as any).captureStream();
+      if (stream) {
+        mediaRecorderRef.current = new MediaRecorder(stream);
+        mediaRecorderRef.current.ondataavailable = (e) => {
+          if (e.data.size > 0) {
+            const recordedBlob = new Blob([e.data], { type: "video" });
+            createBlobAndDownloadFile(recordedBlob, "webm");
+          }
+        };
+        mediaRecorderRef.current.onstart = (e) => {
+          setIsRecording(true);
+        };
+
+        mediaRecorderRef.current.onstop = (e) => {
+          setIsRecording(false);
+        };
+      }
+    }
+  }, [webcamRef]);
+
+  // Used to initialise the COCOSSD modals
+  useEffect(() => {
+    setLoading(true);
+    initModal();
+  }, []);
+
+  // Load model
+  async function initModal() {
+    const loadedModal: ObjectDetection = await cocossd.load({
+      base: "mobilenet_v2",
+    });
+    setModal(loadedModal);
+  }
+
+  // Used to manage the Loading State
+  useEffect(() => {
+    if (modal) {
+      setLoading(false);
+    }
+  }, [modal]);
+
+  async function runPrediction() {
+    if (
+      modal &&
+      webcamRef.current &&
+      webcamRef.current.video &&
+      webcamRef.current.video.readyState === 4
+    ) {
+      const predictions: DetectedObject[] = await modal.detect(
+        webcamRef.current.video
+      );
+      resizeCanvas(canvasRef, webcamRef);
+      drawOnCanvas(mirrored, predictions, canvasRef.current?.getContext("2d"));
+      let isPerson: boolean = false;
+      if (predictions.length > 0) {
+        predictions.forEach((pred) => {
+          isPerson = pred.class === "person";
+        });
+        if (isPerson && autoRecordEnabled) {
+          startRecording(false);
+        }
+      }
+    }
+  }
+
+  // Used to manage the intervals
+  useEffect(() => {
+    interval = setInterval(() => runPrediction(), 100);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [webcamRef.current, modal, mirrored, autoRecordEnabled]);
 
   return (
     <div className="flex h-screen">
@@ -103,7 +197,7 @@ const HomePage = (props: Props) => {
             <Popover>
               <PopoverTrigger asChild>
                 <Button
-                  variant={isRecording ? "destructive" : "outline"}
+                  variant={"outline"}
                   size={"icon"}
                   onClick={userPromptRecord}
                 >
@@ -129,19 +223,58 @@ const HomePage = (props: Props) => {
           <RenderFeatureHighlightsSection />
         </div>
       </div>
+      {loading && (
+        <div className="z-50 absolute h-full w-full flex items-center justify-center bg-primary-foreground">
+          Getting things ready...
+          <Rings height={50} color="red" />
+        </div>
+      )}
     </div>
   );
 
   function userPromptScreenShot() {
     // Login to take Screenshot on user propmt/click
+    if (!webcamRef.current) {
+      toast(`Camera is not founr. Please refresh.`);
+    } else {
+      const imgSrc = webcamRef.current.getScreenshot();
+      const imgBlob = base64ToBlob(imgSrc);
+      createBlobAndDownloadFile(imgBlob, "png");
+    }
   }
 
   function userPromptRecord() {
-    // Check if recording
-    // then stop recording
-    // save the recording
-    // If not recording
-    // start recording
+    if (!webcamRef.current) {
+      toast(`Camera is not founr. Please refresh.`);
+    }
+    if (mediaRecorderRef.current?.state == "recording") {
+      // Check if recording
+      // then stop recording
+      // save the recording
+      mediaRecorderRef.current?.requestData();
+      clearTimeout(stopTimeout);
+      mediaRecorderRef.current?.stop();
+      toast("Recording saved to downloads");
+    } else {
+      // If not recording
+      // start recording
+      startRecording(true);
+    }
+  }
+
+  function startRecording(isManual: boolean) {
+    if (webcamRef.current && mediaRecorderRef.current?.state !== "recording") {
+      mediaRecorderRef.current?.start();
+      if (!isManual) {
+        beep(volume);
+      }
+      stopTimeout = setTimeout(() => {
+        if (mediaRecorderRef.current?.state === "recording") {
+          mediaRecorderRef.current.requestData();
+          mediaRecorderRef.current.stop();
+        }
+      }, 30000);
+    }
   }
 
   function toggleAutoRecord() {
