@@ -33,6 +33,7 @@ import * as cocossd from "@tensorflow-models/coco-ssd";
 import "@tensorflow/tfjs-backend-cpu";
 import "@tensorflow/tfjs-backend-webgl";
 import { DetectedObject, ObjectDetection } from "@tensorflow-models/coco-ssd";
+import SocialLinks from "@/components/social-links";
 
 type Props = {};
 
@@ -190,10 +191,7 @@ const HomePage = (props: Props) => {
             </Button>
             <Popover>
               <PopoverTrigger asChild>
-                <Button
-                  variant={"outline"}
-                  size={"icon"}
-                >
+                <Button variant={"outline"} size={"icon"}>
                   <Volume2 />
                 </Button>
               </PopoverTrigger>
@@ -260,10 +258,7 @@ const HomePage = (props: Props) => {
               <Separator className="my-2" />
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button
-                    variant={"outline"}
-                    size={"icon"}
-                  >
+                  <Button variant={"outline"} size={"icon"}>
                     <Volume2 />
                   </Button>
                 </PopoverTrigger>
@@ -445,7 +440,7 @@ const HomePage = (props: Props) => {
           <Separator />
           <li className="space-y-4">
             <strong>Share your thoughts 💬 </strong>
-            {/* <SocialMediaLinks /> */}
+            <SocialLinks />
             <br />
             <br />
             <br />
