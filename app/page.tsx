@@ -193,7 +193,6 @@ const HomePage = (props: Props) => {
                 <Button
                   variant={"outline"}
                   size={"icon"}
-                  onClick={userPromptRecord}
                 >
                   <Volume2 />
                 </Button>
@@ -264,7 +263,6 @@ const HomePage = (props: Props) => {
                   <Button
                     variant={"outline"}
                     size={"icon"}
-                    onClick={userPromptRecord}
                   >
                     <Volume2 />
                   </Button>
